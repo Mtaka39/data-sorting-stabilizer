@@ -1,0 +1,57 @@
+#!/bin/zsh
+
+INPUT="$1"
+
+# ファイル or フォルダか判定
+if [ -f "$INPUT" ]; then
+  SOURCE_DIR=$(dirname "$INPUT")
+elif [ -d "$INPUT" ]; then
+  SOURCE_DIR="$INPUT"
+else
+  echo "❌ 無効な入力: $INPUT"
+  exit 1
+fi
+
+cd "$SOURCE_DIR" || exit
+
+# 出力先フォルダ
+mkdir -p "DJI/Original" "DJI/Stabilized" "GoPro/Original" "GoPro/Stabilized"
+
+# 拡張子 .mp4 / .mov 大文字対応
+typeset -a files
+files=(*.mp4(N) *.MP4(N) *.mov(N) *.MOV(N))
+
+for file in $files; do
+  [ -e "$file" ] || continue
+
+  filename_lower=$(echo "$file" | tr '[:upper:]' '[:lower:]')
+
+  # --- DJI分類 ---
+  if [[ "$filename_lower" == dji_*stabilized* ]]; then
+    mv "$file" "DJI/Stabilized/"
+    echo "🔄 DJIスタビ：$file"
+
+  elif [[ "$filename_lower" == dji_* ]]; then
+    mv "$file" "DJI/Original/"
+    echo "📁 DJIオリジナル：$file"
+
+  # --- GoPro分類 ---
+  elif [[ "$filename_lower" == gx* ]]; then
+    base="${filename_lower##*/}"
+    base_noext="${base%.*}"
+    lastchar="${base_noext[-1]}"
+
+    if [[ "$lastchar" == [a-z] ]]; then
+      mv "$file" "GoPro/Stabilized/"
+      echo "🔄 GoProスタビ：$file"
+    else
+      mv "$file" "GoPro/Original/"
+      echo "📁 GoProオリジナル：$file"
+    fi
+
+  else
+    echo "❓ 未分類：$file"
+  fi
+done
+
+echo "✅ 仕分け完了"
